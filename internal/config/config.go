@@ -11,6 +11,7 @@ type Config struct {
 	WatchPaths []string `mapstructure:"watch"`
 	Ignore     []string `mapstructure:"ignore"`
 	DBPath     string   `mapstructure:"db_path"`
+	MaxSize    int64    `mapstructure:"max_size"`
 }
 
 func Load() (*Config, error) {
@@ -22,6 +23,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("watch", []string{"."})
 	viper.SetDefault("ignore", []string{".git", "node_modules", "dist", "vendor"})
 	viper.SetDefault("db_path", "hippo.db")
+	viper.SetDefault("max_size", 10*1024*1024) // 10MB default
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

@@ -12,7 +12,7 @@ import (
 	"github.com/tomiwa-a/hippo/internal/db"
 )
 
-func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string) error {
+func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string, maxSize int64) error {
 	fileChan := Walk(roots, ignores)
 
 	for path := range fileChan {
@@ -22,7 +22,12 @@ func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string
 			continue
 		}
 
+		if info.Size() > maxSize {
+			continue
+		}
+
 		mtime := info.ModTime().Unix()
+		size := info.Size()
 
 		existing, err := database.GetFile(ctx, path)
 		if err != nil {
@@ -30,7 +35,7 @@ func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string
 			continue
 		}
 
-		if existing != nil && existing.LastModified == mtime {
+		if existing != nil && existing.LastModified == mtime && existing.Size == size {
 			continue
 		}
 
@@ -42,6 +47,7 @@ func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string
 
 		if existing != nil && existing.Hash == hash {
 			existing.LastModified = mtime
+			existing.Size = size
 			if err := database.UpsertFile(ctx, existing); err != nil {
 				log.Printf("Failed to update mtime for %s: %v", path, err)
 			}
@@ -54,6 +60,7 @@ func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string
 			Path:         path,
 			Hash:         hash,
 			LastModified: mtime,
+			Size:         size,
 			IndexedAt:    time.Now().Unix(),
 		}
 

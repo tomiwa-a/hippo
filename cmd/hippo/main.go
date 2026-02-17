@@ -30,7 +30,7 @@ func main() {
 	fmt.Println("Database connected and migrated.")
 
 	fmt.Println("Starting Sync...")
-	if err := crawler.Sync(ctx, database, cfg.WatchPaths, cfg.Ignore); err != nil {
+	if err := crawler.Sync(ctx, database, cfg.WatchPaths, cfg.Ignore, cfg.MaxSize); err != nil {
 		log.Fatalf("Sync failed: %v", err)
 	}
 	fmt.Println("Sync completed.")
