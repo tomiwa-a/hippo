@@ -23,13 +23,12 @@ type Document struct {
 }
 
 type Chunk struct {
-	ID          string
-	FileID      int64
-	Content     string
-	SourcePath  string
-	MarkerValue string
-	MarkerType  MarkerType
-	StartIndex  int
+	ID         string
+	FileID     int64
+	Content    string
+	SourcePath string
+	Meta       map[string]string
+	StartIndex int
 }
 
 type Extractor interface {

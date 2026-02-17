@@ -30,21 +30,26 @@ func (c *Chunker) Chunk(doc *Document) []Chunk {
 		return markers[i].Position < markers[j].Position
 	})
 
+	activeMeta := make(map[string]string)
+	markerIdx := 0
 	start := 0
+
 	for start < len(doc.Content) {
+		for markerIdx < len(markers) && markers[markerIdx].Position <= start {
+			activeMeta[string(markers[markerIdx].Type)] = markers[markerIdx].Value
+			markerIdx++
+		}
+
 		end := start + c.Size
 		if end > len(doc.Content) {
 			end = len(doc.Content)
 		}
 
 		bestBreak := end
-		var activeMarker *Marker
-
-		for i := range markers {
-			if markers[i].Position > start && markers[i].Position <= end {
-				bestBreak = markers[i].Position
-				activeMarker = &markers[i]
-			}
+		lookaheadIdx := markerIdx
+		for lookaheadIdx < len(markers) && markers[lookaheadIdx].Position <= end {
+			bestBreak = markers[lookaheadIdx].Position
+			lookaheadIdx++
 		}
 
 		if bestBreak == end && end < len(doc.Content) {
@@ -59,14 +64,16 @@ func (c *Chunker) Chunk(doc *Document) []Chunk {
 
 		content := strings.TrimSpace(doc.Content[start:bestBreak])
 		if len(content) > 0 {
+			meta := make(map[string]string)
+			for k, v := range activeMeta {
+				meta[k] = v
+			}
+
 			chunk := Chunk{
 				Content:    content,
 				SourcePath: doc.Path,
 				StartIndex: start,
-			}
-			if activeMarker != nil {
-				chunk.MarkerValue = activeMarker.Value
-				chunk.MarkerType = activeMarker.Type
+				Meta:       meta,
 			}
 			h := sha256.Sum256([]byte(content + doc.Path))
 			chunk.ID = hex.EncodeToString(h[:])

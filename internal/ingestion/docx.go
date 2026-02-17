@@ -16,8 +16,13 @@ func (e *DocxExtractor) Extract(ctx context.Context, path string) (*Document, er
 	}
 	defer r.Close()
 
-	return &Document{
+	content := r.Editable().GetContent()
+	doc := &Document{
 		Path:    path,
-		Content: r.Editable().GetContent(),
-	}, nil
+		Content: content,
+	}
+
+	// Simple heuristic: lines with fewer than 50 chars followed by newline might be headers
+	// But docx XML is messy. For now, we'll keep it simple as requested "clean".
+	return doc, nil
 }
