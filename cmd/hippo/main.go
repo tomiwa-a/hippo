@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/tomiwa-a/hippo/internal/config"
+	"github.com/tomiwa-a/hippo/internal/crawler"
 	"github.com/tomiwa-a/hippo/internal/db"
 )
 
@@ -26,8 +27,16 @@ func main() {
 
 	fmt.Println("Database connected and migrated.")
 
-	fmt.Println("Watching:")
-	for _, p := range cfg.WatchPaths {
-		fmt.Printf("  - %s\n", p)
+	fmt.Println("Starting Crawler...")
+	fileChan := crawler.Walk(cfg.WatchPaths, cfg.Ignore)
+
+	count := 0
+	for path := range fileChan {
+		fmt.Printf("Found: %s\n", path)
+		count++
+		if count >= 10 {
+			fmt.Println("... (limiting output to 10 files)")
+			break
+		}
 	}
 }
