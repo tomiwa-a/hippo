@@ -37,9 +37,7 @@ export function Navbar() {
 
         {/* CTA */}
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
-            Sign In
-          </Button>
+
           <Button size="sm">
             Get Started
           </Button>
