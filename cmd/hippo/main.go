@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/tomiwa-a/hippo/internal/config"
+	"github.com/tomiwa-a/hippo/internal/db"
 )
 
 func main() {
@@ -14,13 +15,19 @@ func main() {
 	}
 
 	fmt.Println("🦛 Hippo Engine Started")
-	fmt.Printf("Database: %s\n", cfg.DBPath)
+	fmt.Printf("Database Path: %s\n", cfg.DBPath)
+
+	// Initialize Database
+	database, err := db.New(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer database.Close()
+
+	fmt.Println("Database connected and migrated.")
+
 	fmt.Println("Watching:")
 	for _, p := range cfg.WatchPaths {
 		fmt.Printf("  - %s\n", p)
-	}
-	fmt.Println("Ignoring:")
-	for _, i := range cfg.Ignore {
-		fmt.Printf("  - %s\n", i)
 	}
 }
