@@ -7,9 +7,8 @@ import (
 	"fmt"
 	"log"
 
-	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/ncruces"
+	_ "github.com/asg017/sqlite-vec-go-bindings/ncruces"
 	_ "github.com/ncruces/go-sqlite3/driver"
-	_ "github.com/ncruces/go-sqlite3/embed"
 	"github.com/tomiwa-a/hippo/internal/ingestion"
 )
 
@@ -105,10 +104,7 @@ func (db *DB) SaveChunk(ctx context.Context, c ingestion.Chunk, embedding []floa
 	}
 
 	if embedding != nil {
-		blob, err := sqlite_vec.SerializeFloat32(embedding)
-		if err != nil {
-			return err
-		}
+		blob := serializeFloat32(embedding)
 		_, err = tx.ExecContext(ctx, `
 			INSERT OR IGNORE INTO vec_chunks (chunk_id, embedding)
 			VALUES (?, ?)`,

@@ -30,7 +30,7 @@ func Load() (*Config, error) {
 	viper.AddConfigPath(os.Getenv("HOME") + "/.hippo")
 
 	viper.SetDefault("watch", []string{"."})
-	viper.SetDefault("ignore", []string{".git", "node_modules", "dist", "vendor"})
+	viper.SetDefault("ignore", []string{".git", "node_modules", "dist", "vendor", "*.json"})
 	viper.SetDefault("db_path", "hippo.db")
 	viper.SetDefault("max_size", 10*1024*1024) // 10MB default
 	viper.SetDefault("workers", runtime.NumCPU())
