@@ -67,6 +67,34 @@ See the full technical requirements for details.
 - **Phase 2**: Embedding generation and semantic search.
 - **Phase 3**: Code analysis with Tree-sitter and graph construction.
 - **Phase 4**: MCP server and agent integration.
+- **Phase 5**: "Query-First" SDK development and OS-level integrations.
+
+## Target Benchmarks
+
+Hippo aims for industry-leading performance to ensure a seamless, "instant" context experience.
+
+| Metric                 | Target Performance   | Hippo's Edge                                  |
+| :--------------------- | :------------------- | :-------------------------------------------- |
+| **Search Latency**     | **< 150ms**          | Sub-perceptual retrieval for instant answers. |
+| **Embedding Speed**    | **> 1,000 docs/min** | Fast "warm-up" on standard consumer hardware. |
+| **Indexing Overhead**  | **< 1% Idle CPU**    | Invisible background operation.               |
+| **Retrieval Accuracy** | **Recall@10 > 90%**  | Precise, reliable knowledge retrieval.        |
+
+## Strategic Focus: OS-Level Semantic Search
+
+We are building Hippo to be the semantic backbone of the operating system. Instead of simple keyword search, Hippo enables:
+
+- **Semantic File Discovery**: Querying "that contract about the house" instead of searching for `house_final_v2.pdf`.
+- **Terminal Intelligence**: Natural language querying of local files directly from the shell (`hippo query "explain auth logic"`).
+- **Universal Context**: A unified memory layer that any application can tap into via a simple SDK.
+
+## Strategic Focus: Secure Fields (Privacy-as-a-Product)
+
+Hippo is uniquely positioned for sectors where cloud AI is a liability:
+
+- **Medical (HIPAA)**: Processing patient data locally to ensure zero PHI exposure to cloud providers.
+- **Legal (Privilege)**: Ensuring sensitive case files never leave the firm's physical perimeter, mitigating subpoena and breach risks.
+- **Government/Defense**: Air-gapped semantic search for highly sensitive or classified repositories.
 
 ## Future Ideas
 
