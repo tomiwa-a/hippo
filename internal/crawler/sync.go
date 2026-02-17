@@ -9,11 +9,24 @@ import (
 	"os"
 	"time"
 
+	"github.com/tomiwa-a/hippo/internal/config"
 	"github.com/tomiwa-a/hippo/internal/db"
 )
 
-func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string, maxSize int64) error {
-	fileChan := Walk(roots, ignores)
+type Crawler struct {
+	DB     *db.DB
+	Config *config.Config
+}
+
+func New(database *db.DB, cfg *config.Config) *Crawler {
+	return &Crawler{
+		DB:     database,
+		Config: cfg,
+	}
+}
+
+func (c *Crawler) Sync(ctx context.Context) error {
+	fileChan := Walk(c.Config.WatchPaths, c.Config.Ignore)
 
 	for path := range fileChan {
 		info, err := os.Stat(path)
@@ -22,14 +35,14 @@ func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string
 			continue
 		}
 
-		if info.Size() > maxSize {
+		if info.Size() > c.Config.MaxSize {
 			continue
 		}
 
 		mtime := info.ModTime().Unix()
 		size := info.Size()
 
-		existing, err := database.GetFile(ctx, path)
+		existing, err := c.DB.GetFile(ctx, path)
 		if err != nil {
 			log.Printf("DB error for %s: %v", path, err)
 			continue
@@ -48,7 +61,7 @@ func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string
 		if existing != nil && existing.Hash == hash {
 			existing.LastModified = mtime
 			existing.Size = size
-			if err := database.UpsertFile(ctx, existing); err != nil {
+			if err := c.DB.UpsertFile(ctx, existing); err != nil {
 				log.Printf("Failed to update mtime for %s: %v", path, err)
 			}
 			continue
@@ -64,7 +77,7 @@ func Sync(ctx context.Context, database *db.DB, roots []string, ignores []string
 			IndexedAt:    time.Now().Unix(),
 		}
 
-		if err := database.UpsertFile(ctx, f); err != nil {
+		if err := c.DB.UpsertFile(ctx, f); err != nil {
 			log.Printf("Failed to upsert %s: %v", path, err)
 		}
 	}
