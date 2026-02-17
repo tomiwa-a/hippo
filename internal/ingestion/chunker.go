@@ -74,8 +74,9 @@ func (c *Chunker) Chunk(doc *Document) []Chunk {
 				SourcePath: doc.Path,
 				StartIndex: start,
 				Meta:       meta,
+				Index:      len(chunks),
 			}
-			h := sha256.Sum256([]byte(content + doc.Path))
+			h := sha256.Sum256([]byte(content))
 			chunk.ID = hex.EncodeToString(h[:])
 			chunks = append(chunks, chunk)
 		}

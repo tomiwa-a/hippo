@@ -25,6 +25,7 @@ type Document struct {
 type Chunk struct {
 	ID         string
 	FileID     int64
+	Index      int
 	Content    string
 	SourcePath string
 	Meta       map[string]string

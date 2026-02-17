@@ -3,11 +3,14 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 
-	_ "github.com/asg017/sqlite-vec-go-bindings/ncruces"
+	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/ncruces"
 	_ "github.com/ncruces/go-sqlite3/driver"
+	_ "github.com/ncruces/go-sqlite3/embed"
+	"github.com/tomiwa-a/hippo/internal/ingestion"
 )
 
 type DB struct {
@@ -48,11 +51,12 @@ func (db *DB) migrate(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash);
 	
 	CREATE TABLE IF NOT EXISTS chunks (
-		id TEXT PRIMARY KEY,
 		file_id INTEGER NOT NULL,
 		chunk_index INTEGER NOT NULL,
+		chunk_id TEXT NOT NULL, 
 		content TEXT NOT NULL, 
 		metadata TEXT, 
+		PRIMARY KEY(file_id, chunk_index),
 		FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
 	);
 
@@ -62,6 +66,7 @@ func (db *DB) migrate(ctx context.Context) error {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON chunks(file_id);
+	CREATE INDEX IF NOT EXISTS idx_chunks_chunk_id ON chunks(chunk_id);
 	`
 
 	_, err := db.ExecContext(ctx, query)
@@ -71,6 +76,49 @@ func (db *DB) migrate(ctx context.Context) error {
 
 	log.Println("Database migration completed successfully.")
 	return nil
+}
+
+func (db *DB) HasEmbedding(ctx context.Context, chunkID string) (bool, error) {
+	var count int
+	err := db.QueryRowContext(ctx, "SELECT count(*) FROM vec_chunks WHERE chunk_id = ?", chunkID).Scan(&count)
+	return count > 0, err
+}
+
+func (db *DB) SaveChunk(ctx context.Context, c ingestion.Chunk, embedding []float32) error {
+	metaJSON, err := json.Marshal(c.Meta)
+	if err != nil {
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO chunks (file_id, chunk_index, chunk_id, content, metadata)
+		VALUES (?, ?, ?, ?, ?)`,
+		c.FileID, c.Index, c.ID, c.Content, string(metaJSON))
+	if err != nil {
+		return err
+	}
+
+	if embedding != nil {
+		blob, err := sqlite_vec.SerializeFloat32(embedding)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `
+			INSERT OR IGNORE INTO vec_chunks (chunk_id, embedding)
+			VALUES (?, ?)`,
+			c.ID, blob)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 type File struct {
