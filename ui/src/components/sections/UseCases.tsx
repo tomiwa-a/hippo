@@ -55,15 +55,27 @@ export function UseCases() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="p-8 rounded-2xl bg-zinc-900/50 border border-white/5 hover:border-rose-500/30 transition-colors group"
+              className="relative p-8 group transition-colors"
             >
-              <div className="mb-6 p-4 rounded-xl bg-zinc-950 border border-white/5 w-fit group-hover:border-rose-500/20 transition-colors">
-                {useCase.icon}
+              {/* Unique 'Corner Brackets' Effect */}
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-zinc-800 group-hover:border-rose-500 transition-colors duration-300" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-zinc-800 group-hover:border-rose-500 transition-colors duration-300" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-zinc-800 group-hover:border-rose-500 transition-colors duration-300" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-zinc-800 group-hover:border-rose-500 transition-colors duration-300" />
+              
+              {/* Hover Background Hint */}
+              <div className="absolute inset-4 bg-zinc-900/0 group-hover:bg-zinc-900/40 transition-colors duration-300 -z-10" />
+
+              <div className="mb-6 relative">
+                 <div className="p-3 w-fit transition-transform duration-300 group-hover:scale-110 group-hover:text-rose-400">
+                    {useCase.icon}
+                 </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-3">
+              
+              <h3 className="text-xl font-bold text-white mb-3 group-hover:text-rose-500 transition-colors">
                 {useCase.title}
               </h3>
-              <p className="text-zinc-400 leading-relaxed">
+              <p className="text-zinc-400 leading-relaxed group-hover:text-zinc-300 transition-colors">
                 {useCase.description}
               </p>
             </motion.div>
