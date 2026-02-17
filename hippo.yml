@@ -3,9 +3,9 @@ watch:
   - ./docs
 
 ignore:
-  - ui/node_modules
-  - .git
-  - tmp
+  - "node_modules/"
+  - ".git/"
+  - "dist/"
   - "*.db*"
 
 max_size: 10485760 # 10MB

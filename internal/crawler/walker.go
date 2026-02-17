@@ -4,10 +4,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
+
+	gitignore "github.com/sabhiram/go-gitignore"
 )
 
-func Walk(roots []string, ignores []string) <-chan string {
+func Walk(roots []string, gi *gitignore.GitIgnore) <-chan string {
 	out := make(chan string)
 
 	go func() {
@@ -20,7 +21,7 @@ func Walk(roots []string, ignores []string) <-chan string {
 					return nil
 				}
 
-				if isIgnored(path, ignores) {
+				if gi.MatchesPath(path) {
 					if d.IsDir() {
 						return filepath.SkipDir
 					}
@@ -41,17 +42,4 @@ func Walk(roots []string, ignores []string) <-chan string {
 	}()
 
 	return out
-}
-
-func isIgnored(path string, ignores []string) bool {
-	base := filepath.Base(path)
-	for _, ignore := range ignores {
-		if matched, _ := filepath.Match(ignore, base); matched {
-			return true
-		}
-		if strings.Contains(path, ignore) {
-			return true
-		}
-	}
-	return false
 }

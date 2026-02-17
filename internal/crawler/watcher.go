@@ -23,7 +23,7 @@ func (c *Crawler) Watch(ctx context.Context) error {
 				return nil
 			}
 			if d.IsDir() {
-				if isIgnored(path, c.Config.Ignore) {
+				if c.IgnoreMap.MatchesPath(path) {
 					return filepath.SkipDir
 				}
 				return watcher.Add(path)
@@ -44,7 +44,7 @@ func (c *Crawler) Watch(ctx context.Context) error {
 				return nil
 			}
 
-			if isIgnored(event.Name, c.Config.Ignore) {
+			if c.IgnoreMap.MatchesPath(event.Name) {
 				continue
 			}
 

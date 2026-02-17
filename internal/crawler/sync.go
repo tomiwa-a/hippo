@@ -9,24 +9,28 @@ import (
 	"os"
 	"time"
 
+	gitignore "github.com/sabhiram/go-gitignore"
 	"github.com/tomiwa-a/hippo/internal/config"
 	"github.com/tomiwa-a/hippo/internal/db"
 )
 
 type Crawler struct {
-	DB     *db.DB
-	Config *config.Config
+	DB        *db.DB
+	Config    *config.Config
+	IgnoreMap *gitignore.GitIgnore
 }
 
 func New(database *db.DB, cfg *config.Config) *Crawler {
+	gi := gitignore.CompileIgnoreLines(cfg.Ignore...)
 	return &Crawler{
-		DB:     database,
-		Config: cfg,
+		DB:        database,
+		Config:    cfg,
+		IgnoreMap: gi,
 	}
 }
 
 func (c *Crawler) Sync(ctx context.Context) error {
-	fileChan := Walk(c.Config.WatchPaths, c.Config.Ignore)
+	fileChan := Walk(c.Config.WatchPaths, c.IgnoreMap)
 
 	for path := range fileChan {
 		info, err := os.Stat(path)
