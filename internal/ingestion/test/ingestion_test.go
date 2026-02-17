@@ -14,8 +14,9 @@ func TestIngestionPipeline(t *testing.T) {
 	ctx := context.Background()
 
 	testFiles := []string{
-		"../../../dummy/test.md",
-		"../../../dummy/test.txt",
+		// "../../../dummy/test.md",
+		// "../../../dummy/test.txt",
+		"../../../dummy/test1.pdf",
 	}
 
 	for _, path := range testFiles {
@@ -34,9 +35,9 @@ func TestIngestionPipeline(t *testing.T) {
 
 			chunks := chunker.Chunk(doc)
 			fmt.Printf("Chunks created: %d\n", len(chunks))
-			// for i, c := range chunks {
-			// 	fmt.Printf("\n[Chunk %d] (Meta: %v)\n%s\n", i, c.Meta, c.Content)
-			// }
+			for i, c := range chunks {
+				fmt.Printf("\n[Chunk %d] (Meta: %v)\n%s\n", i, c.Meta, c.Content)
+			}
 		})
 	}
 }
