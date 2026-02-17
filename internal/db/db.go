@@ -67,3 +67,37 @@ func (db *DB) migrate(ctx context.Context) error {
 	log.Println("Database migration completed successfully.")
 	return nil
 }
+
+type File struct {
+	ID           int64
+	Path         string
+	Hash         string
+	LastModified int64
+	IndexedAt    int64
+}
+
+func (db *DB) GetFile(ctx context.Context, path string) (*File, error) {
+	var f File
+	query := `SELECT id, path, hash, last_modified, indexed_at FROM files WHERE path = ?`
+	err := db.QueryRowContext(ctx, query, path).Scan(&f.ID, &f.Path, &f.Hash, &f.LastModified, &f.IndexedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &f, nil
+}
+
+func (db *DB) UpsertFile(ctx context.Context, f *File) error {
+	query := `
+	INSERT INTO files (path, hash, last_modified, indexed_at)
+	VALUES (?, ?, ?, ?)
+	ON CONFLICT(path) DO UPDATE SET
+		hash = excluded.hash,
+		last_modified = excluded.last_modified,
+		indexed_at = excluded.indexed_at
+	`
+	_, err := db.ExecContext(ctx, query, f.Path, f.Hash, f.LastModified, f.IndexedAt)
+	return err
+}

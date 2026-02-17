@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -10,6 +11,7 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -27,16 +29,9 @@ func main() {
 
 	fmt.Println("Database connected and migrated.")
 
-	fmt.Println("Starting Crawler...")
-	fileChan := crawler.Walk(cfg.WatchPaths, cfg.Ignore)
-
-	count := 0
-	for path := range fileChan {
-		fmt.Printf("Found: %s\n", path)
-		count++
-		if count >= 10 {
-			fmt.Println("... (limiting output to 10 files)")
-			break
-		}
+	fmt.Println("Starting Sync...")
+	if err := crawler.Sync(ctx, database, cfg.WatchPaths, cfg.Ignore); err != nil {
+		log.Fatalf("Sync failed: %v", err)
 	}
+	fmt.Println("Sync completed.")
 }
