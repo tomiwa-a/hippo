@@ -36,5 +36,10 @@ func main() {
 	if err := engine.Sync(ctx); err != nil {
 		log.Fatalf("Sync failed: %v", err)
 	}
-	fmt.Println("Sync completed.")
+	fmt.Println("Initial Sync completed.")
+
+	fmt.Println("Watching for changes...")
+	if err := engine.Watch(ctx); err != nil {
+		log.Fatalf("Watcher failed: %v", err)
+	}
 }
