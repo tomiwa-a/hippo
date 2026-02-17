@@ -4,6 +4,8 @@ go 1.24.5
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
+	github.com/nguyenthenguyen/docx v0.0.0-20230621112118-9c8e795a11db
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/spf13/viper v1.21.0
 	modernc.org/sqlite v1.45.0

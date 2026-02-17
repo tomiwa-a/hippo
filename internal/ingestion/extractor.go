@@ -27,6 +27,9 @@ func NewRegistry() *Registry {
 	r.Register(".ts", textHandler)
 	r.Register(".tsx", textHandler)
 
+	r.Register(".pdf", &PdfExtractor{})
+	r.Register(".docx", &DocxExtractor{})
+
 	return r
 }
 
