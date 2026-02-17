@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/asg017/sqlite-vec-go-bindings/ncruces"
+	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
 type DB struct {
@@ -14,9 +15,7 @@ type DB struct {
 }
 
 func New(path string) (*DB, error) {
-	connStr := fmt.Sprintf("%s?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(ON)", path)
-
-	sqlDB, err := sql.Open("sqlite", connStr)
+	sqlDB, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -49,12 +48,17 @@ func (db *DB) migrate(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash);
 	
 	CREATE TABLE IF NOT EXISTS chunks (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id TEXT PRIMARY KEY,
 		file_id INTEGER NOT NULL,
 		chunk_index INTEGER NOT NULL,
 		content TEXT NOT NULL, 
 		metadata TEXT, 
 		FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
+	);
+
+	CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
+		chunk_id TEXT PRIMARY KEY,
+		embedding FLOAT[768]
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON chunks(file_id);
