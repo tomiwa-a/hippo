@@ -27,8 +27,8 @@ export function Navbar() {
           <a href="#features" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
             Features
           </a>
-          <a href="#secure" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
-            Secure Fields
+          <a href="#use-cases" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+            Use Cases
           </a>
           <a href="#docs" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors">
             Docs
