@@ -9,5 +9,6 @@ ignore:
   - "*.db*"
 
 max_size: 10485760 # 10MB
+workers: 4
 
 db_path: hippo.db

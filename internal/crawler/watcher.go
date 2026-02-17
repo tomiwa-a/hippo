@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/tomiwa-a/hippo/internal/db"
 )
 
 func (c *Crawler) Watch(ctx context.Context) error {
@@ -49,7 +48,7 @@ func (c *Crawler) Watch(ctx context.Context) error {
 			}
 
 			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
-				c.handleFileChange(ctx, event.Name)
+				c.work <- event.Name
 			}
 
 			if event.Has(fsnotify.Create) {
@@ -66,49 +65,4 @@ func (c *Crawler) Watch(ctx context.Context) error {
 			log.Printf("Watcher error: %v", err)
 		}
 	}
-}
-
-func (c *Crawler) handleFileChange(ctx context.Context, path string) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return
-	}
-	if info.IsDir() {
-		return
-	}
-
-	if info.Size() > c.Config.MaxSize {
-		return
-	}
-
-	mtime := info.ModTime().Unix()
-	size := info.Size()
-
-	existing, _ := c.DB.GetFile(ctx, path)
-	if existing != nil && existing.LastModified == mtime && existing.Size == size {
-		return
-	}
-
-	hash, err := hashFile(path)
-	if err != nil {
-		return
-	}
-
-	if existing != nil && existing.Hash == hash {
-		existing.LastModified = mtime
-		existing.Size = size
-		c.DB.UpsertFile(ctx, existing)
-		return
-	}
-
-	log.Printf("Detected change via watcher: %s", path)
-
-	f := &db.File{
-		Path:         path,
-		Hash:         hash,
-		LastModified: mtime,
-		Size:         size,
-		IndexedAt:    info.ModTime().Unix(),
-	}
-	c.DB.UpsertFile(ctx, f)
 }

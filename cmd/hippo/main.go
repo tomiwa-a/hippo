@@ -31,6 +31,7 @@ func main() {
 
 	// Initialize Crawler
 	engine := crawler.New(database, cfg)
+	engine.Start(ctx)
 
 	fmt.Println("Starting Sync...")
 	if err := engine.Sync(ctx); err != nil {
