@@ -9,11 +9,18 @@ import (
 )
 
 type Config struct {
-	WatchPaths []string `mapstructure:"watch"`
-	Ignore     []string `mapstructure:"ignore"`
-	DBPath     string   `mapstructure:"db_path"`
-	MaxSize    int64    `mapstructure:"max_size"`
-	Workers    int      `mapstructure:"workers"`
+	WatchPaths []string  `mapstructure:"watch"`
+	Ignore     []string  `mapstructure:"ignore"`
+	DBPath     string    `mapstructure:"db_path"`
+	MaxSize    int64     `mapstructure:"max_size"`
+	Workers    int       `mapstructure:"workers"`
+	Embedding  Embedding `mapstructure:"embedding"`
+}
+
+type Embedding struct {
+	Provider string `mapstructure:"provider"` // ollama, openai, etc.
+	BaseURL  string `mapstructure:"base_url"`
+	Model    string `mapstructure:"model"`
 }
 
 func Load() (*Config, error) {
@@ -27,6 +34,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("db_path", "hippo.db")
 	viper.SetDefault("max_size", 10*1024*1024) // 10MB default
 	viper.SetDefault("workers", runtime.NumCPU())
+	viper.SetDefault("embedding.provider", "ollama")
+	viper.SetDefault("embedding.base_url", "http://localhost:11434")
+	viper.SetDefault("embedding.model", "nomic-embed-text")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

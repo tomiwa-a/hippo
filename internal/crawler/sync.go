@@ -2,9 +2,6 @@ package crawler
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"io"
 	"log"
 	"os"
 	"time"
@@ -12,6 +9,8 @@ import (
 	gitignore "github.com/sabhiram/go-gitignore"
 	"github.com/tomiwa-a/hippo/internal/config"
 	"github.com/tomiwa-a/hippo/internal/db"
+	"github.com/tomiwa-a/hippo/internal/embedding"
+	"github.com/tomiwa-a/hippo/internal/ingestion"
 )
 
 type Crawler struct {
@@ -19,15 +18,30 @@ type Crawler struct {
 	Config    *config.Config
 	IgnoreMap *gitignore.GitIgnore
 	work      chan string
+	registry  *ingestion.Registry
+	chunker   *ingestion.Chunker
+	embedder  embedding.Embedder
 }
 
 func New(database *db.DB, cfg *config.Config) *Crawler {
 	gi := gitignore.CompileIgnoreLines(cfg.Ignore...)
+
+	registry := ingestion.NewRegistry()
+	chunker := ingestion.NewChunker(1000, 200) // 1000 chars, 200 overlap
+
+	var embedder embedding.Embedder
+	if cfg.Embedding.Provider == "ollama" {
+		embedder = embedding.NewOllamaEmbedder(cfg.Embedding.BaseURL, cfg.Embedding.Model)
+	}
+
 	return &Crawler{
 		DB:        database,
 		Config:    cfg,
 		IgnoreMap: gi,
 		work:      make(chan string, 1000),
+		registry:  registry,
+		chunker:   chunker,
+		embedder:  embedder,
 	}
 }
 
@@ -76,41 +90,55 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 		return
 	}
 
-	hash, err := hashFile(path)
+	log.Printf("Processing: %s", path)
+
+	doc, err := c.registry.Extract(ctx, path)
 	if err != nil {
+		log.Printf("Extraction failed for %s: %v", path, err)
 		return
 	}
 
-	if existing != nil && existing.Hash == hash {
-		existing.LastModified = mtime
-		existing.Size = size
-		c.DB.UpsertFile(ctx, existing)
-		return
-	}
-
-	log.Printf("Detected change: %s", path)
+	chunks := c.chunker.Chunk(doc)
 
 	f := &db.File{
 		Path:         path,
-		Hash:         hash,
+		Hash:         doc.Content,
 		LastModified: mtime,
 		Size:         size,
 		IndexedAt:    time.Now().Unix(),
 	}
-	c.DB.UpsertFile(ctx, f)
-}
 
-func hashFile(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
+	if existing != nil {
+		f.ID = existing.ID
 	}
 
-	return hex.EncodeToString(h.Sum(nil)), nil
+	if err := c.DB.UpsertFile(ctx, f); err != nil {
+		log.Printf("Failed to upsert file %s: %v", path, err)
+		return
+	}
+
+	if f.ID == 0 {
+		savedFile, _ := c.DB.GetFile(ctx, path)
+		f.ID = savedFile.ID
+	}
+
+	for _, chunk := range chunks {
+		chunk.FileID = f.ID
+
+		hasEmbedding, _ := c.DB.HasEmbedding(ctx, chunk.ID)
+
+		var vec []float32
+		if !hasEmbedding && c.embedder != nil {
+			v, err := c.embedder.Embed(ctx, chunk.Content)
+			if err != nil {
+				log.Printf("Embedding failed for chunk %s: %v", chunk.ID, err)
+				continue
+			}
+			vec = v
+		}
+
+		if err := c.DB.SaveChunk(ctx, chunk, vec); err != nil {
+			log.Printf("Failed to save chunk %s: %v", chunk.ID, err)
+		}
+	}
 }
