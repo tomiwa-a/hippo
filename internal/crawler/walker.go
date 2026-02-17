@@ -44,7 +44,11 @@ func Walk(roots []string, ignores []string) <-chan string {
 }
 
 func isIgnored(path string, ignores []string) bool {
+	base := filepath.Base(path)
 	for _, ignore := range ignores {
+		if matched, _ := filepath.Match(ignore, base); matched {
+			return true
+		}
 		if strings.Contains(path, ignore) {
 			return true
 		}

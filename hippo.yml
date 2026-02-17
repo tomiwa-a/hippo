@@ -6,5 +6,6 @@ ignore:
   - ui/node_modules
   - .git
   - tmp
+  - "*.db*"
 
 db_path: hippo.db
