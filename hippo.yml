@@ -1,0 +1,10 @@
+watch:
+  - .
+  - ./docs
+
+ignore:
+  - ui/node_modules
+  - .git
+  - tmp
+
+db_path: hippo.db
