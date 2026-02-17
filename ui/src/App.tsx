@@ -1,34 +1,20 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Layout } from './components/layout/Layout';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
+    <Layout>
+      <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
+        <h1 className="text-4xl font-bold font-sans text-white">
+          Hippo <span className="text-rose-500">Daemon</span>
+        </h1>
+        <p className="font-mono text-zinc-400">
+          Local-first semantic brain.
         </p>
+        <div className="p-4 bg-zinc-900 border border-white/10 rounded-lg">
+          <code className="text-rose-400 font-mono">$ hippo query "init"</code>
+        </div>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    </Layout>
   )
 }
 
