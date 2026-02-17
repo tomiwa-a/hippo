@@ -10,23 +10,26 @@ import (
 
 type PdfExtractor struct{}
 
-func (e *PdfExtractor) Extract(ctx context.Context, path string) (string, error) {
+func (e *PdfExtractor) Extract(ctx context.Context, path string) (*Document, error) {
 	f, r, err := pdf.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to open pdf: %w", err)
+		return nil, fmt.Errorf("failed to open pdf: %w", err)
 	}
 	defer f.Close()
 
 	var buf bytes.Buffer
 	b, err := r.GetPlainText()
 	if err != nil {
-		return "", fmt.Errorf("failed to get pdf text: %w", err)
+		return nil, fmt.Errorf("failed to get pdf text: %w", err)
 	}
 
 	_, err = buf.ReadFrom(b)
 	if err != nil {
-		return "", fmt.Errorf("failed to read pdf buffer: %w", err)
+		return nil, fmt.Errorf("failed to read pdf buffer: %w", err)
 	}
 
-	return buf.String(), nil
+	return &Document{
+		Path:    path,
+		Content: buf.String(),
+	}, nil
 }

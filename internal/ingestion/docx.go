@@ -9,12 +9,15 @@ import (
 
 type DocxExtractor struct{}
 
-func (e *DocxExtractor) Extract(ctx context.Context, path string) (string, error) {
+func (e *DocxExtractor) Extract(ctx context.Context, path string) (*Document, error) {
 	r, err := docx.ReadDocxFile(path)
 	if err != nil {
-		return "", fmt.Errorf("failed to read docx: %w", err)
+		return nil, fmt.Errorf("failed to read docx: %w", err)
 	}
 	defer r.Close()
 
-	return r.Editable().GetContent(), nil
+	return &Document{
+		Path:    path,
+		Content: r.Editable().GetContent(),
+	}, nil
 }

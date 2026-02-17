@@ -6,10 +6,6 @@ import (
 	"path/filepath"
 )
 
-type Extractor interface {
-	Extract(ctx context.Context, path string) (string, error)
-}
-
 type Registry struct {
 	handlers map[string]Extractor
 }
@@ -37,11 +33,11 @@ func (r *Registry) Register(ext string, handler Extractor) {
 	r.handlers[ext] = handler
 }
 
-func (r *Registry) Extract(ctx context.Context, path string) (string, error) {
+func (r *Registry) Extract(ctx context.Context, path string) (*Document, error) {
 	ext := filepath.Ext(path)
 	handler, ok := r.handlers[ext]
 	if !ok {
-		return "", fmt.Errorf("no extractor registered for extension: %s", ext)
+		return nil, fmt.Errorf("no extractor registered for extension: %s", ext)
 	}
 	return handler.Extract(ctx, path)
 }
