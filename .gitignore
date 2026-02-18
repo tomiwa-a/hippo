@@ -1,2 +1,18 @@
+# Hippo Runtime
+hippo.db
+hippo.pid
+hippo.stats
+
+# Binaries
+bin/
+hippo
+
+# Standard Go
+vendor/
+*.exe
+*.test
+*.prof
+
+
 phases.md
 dummy/
