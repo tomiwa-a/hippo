@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/spf13/viper"
@@ -47,6 +48,15 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unable to decode config: %w", err)
+	}
+
+	// Resolve absolute paths for WatchPaths
+	for i, path := range cfg.WatchPaths {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve absolute path for %s: %w", path, err)
+		}
+		cfg.WatchPaths[i] = absPath
 	}
 
 	return &cfg, nil

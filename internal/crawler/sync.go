@@ -74,7 +74,17 @@ func (c *Crawler) Sync(ctx context.Context) error {
 func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 
 	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		// File deleted or renamed (old path)
+		if err := c.DB.DeleteFile(ctx, path); err != nil {
+			log.Printf("Failed to delete file %s: %v", path, err)
+		} else {
+			log.Printf("Deleted/Pruned: %s", path)
+		}
+		return
+	}
 	if err != nil {
+		log.Printf("Error accessing file %s: %v", path, err)
 		return
 	}
 	if info.IsDir() {

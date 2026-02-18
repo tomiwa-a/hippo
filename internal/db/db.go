@@ -207,3 +207,20 @@ func (db *DB) UpsertFile(ctx context.Context, f *File) error {
 	}
 	return fmt.Errorf("max retries exceeded for upsert file")
 }
+
+func (db *DB) DeleteFile(ctx context.Context, path string) error {
+	query := `DELETE FROM files WHERE path = ?`
+	// Simple retry logic
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		_, err := db.ExecContext(ctx, query, path)
+		if err == nil {
+			return nil
+		}
+		if i == maxRetries-1 {
+			return err
+		}
+		continue
+	}
+	return fmt.Errorf("max retries exceeded for delete file")
+}

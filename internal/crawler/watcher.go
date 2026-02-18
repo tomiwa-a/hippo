@@ -47,7 +47,7 @@ func (c *Crawler) Watch(ctx context.Context) error {
 				continue
 			}
 
-			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) || event.Has(fsnotify.Rename) || event.Has(fsnotify.Remove) {
 				c.work <- event.Name
 			}
 
