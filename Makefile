@@ -17,6 +17,10 @@ run:
 status:
 	go run ./cmd/hippo status
 
+## stop: stop the engine
+stop:
+	go run ./cmd/hippo stop
+
 ## query: search the index (usage: make query Q="search term")
 query:
 	go run ./cmd/hippo query "$(Q)"
