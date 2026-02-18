@@ -26,6 +26,19 @@ func New(path string) (*DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	// Enable WAL mode for better concurrency
+	if _, err := sqlDB.Exec("PRAGMA journal_mode=WAL;"); err != nil {
+		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
+	}
+	// logical busy timeout (10s)
+	if _, err := sqlDB.Exec("PRAGMA busy_timeout=10000;"); err != nil {
+		return nil, fmt.Errorf("failed to set busy timeout: %w", err)
+	}
+	// synchronisation setting for WAL
+	if _, err := sqlDB.Exec("PRAGMA synchronous=NORMAL;"); err != nil {
+		return nil, fmt.Errorf("failed to set synchronous mode: %w", err)
+	}
+
 	db := &DB{sqlDB}
 	if err := db.migrate(context.Background()); err != nil {
 		sqlDB.Close()
@@ -89,32 +102,61 @@ func (db *DB) SaveChunk(ctx context.Context, c ingestion.Chunk, embedding []floa
 		return err
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO chunks (file_id, chunk_index, chunk_id, content, metadata)
-		VALUES (?, ?, ?, ?, ?)`,
-		c.FileID, c.Index, c.ID, c.Content, string(metaJSON))
-	if err != nil {
-		return err
-	}
-
-	if embedding != nil {
-		blob := serializeFloat32(embedding)
-		_, err = tx.ExecContext(ctx, `
-			INSERT OR IGNORE INTO vec_chunks (chunk_id, embedding)
-			VALUES (?, ?)`,
-			c.ID, blob)
+	// Simple retry logic for busy database
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
-			return err
+			if i == maxRetries-1 {
+				return err
+			}
+			continue
 		}
-	}
 
-	return tx.Commit()
+		_, err = tx.ExecContext(ctx, `
+			INSERT OR REPLACE INTO chunks (file_id, chunk_index, chunk_id, content, metadata)
+			VALUES (?, ?, ?, ?, ?)`,
+			c.FileID, c.Index, c.ID, c.Content, string(metaJSON))
+		if err != nil {
+			tx.Rollback()
+			if i == maxRetries-1 {
+				return err
+			}
+			continue
+		}
+
+		if embedding != nil {
+			exists, err := db.HasEmbedding(ctx, c.ID)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			if !exists {
+				blob := serializeFloat32(embedding)
+				_, err = tx.ExecContext(ctx, `
+					INSERT INTO vec_chunks (chunk_id, embedding)
+					VALUES (?, ?)`,
+					c.ID, blob)
+				if err != nil {
+					tx.Rollback()
+					if i == maxRetries-1 {
+						return err
+					}
+					continue
+				}
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			if i == maxRetries-1 {
+				return err
+			}
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("max retries exceeded")
 }
 
 type File struct {
@@ -149,6 +191,19 @@ func (db *DB) UpsertFile(ctx context.Context, f *File) error {
 		size = excluded.size,
 		indexed_at = excluded.indexed_at
 	`
-	_, err := db.ExecContext(ctx, query, f.Path, f.Hash, f.LastModified, f.Size, f.IndexedAt)
-	return err
+	// Simple retry logic for busy database
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		_, err := db.ExecContext(ctx, query, f.Path, f.Hash, f.LastModified, f.Size, f.IndexedAt)
+		if err == nil {
+			return nil
+		}
+		// If error is not relevant to locking, return immediately (simplified for now to just retry on all errors for robustness)
+		// rigorous check would be scanning error string for "database is locked"
+		if i == maxRetries-1 {
+			return err
+		}
+		continue
+	}
+	return fmt.Errorf("max retries exceeded for upsert file")
 }

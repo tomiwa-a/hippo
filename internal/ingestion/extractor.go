@@ -22,9 +22,16 @@ func NewRegistry() *Registry {
 	r.Register(".go", textHandler)
 	r.Register(".ts", textHandler)
 	r.Register(".tsx", textHandler)
+	r.Register(".json", textHandler)
+	r.Register(".yml", textHandler)
+	r.Register(".yaml", textHandler)
+	r.Register(".mod", textHandler)
+	r.Register(".sum", textHandler)
+	r.Register(".gitignore", textHandler)
 
 	r.Register(".pdf", &PdfExtractor{})
 	r.Register(".docx", &DocxExtractor{})
+	r.Register("Makefile", textHandler)
 
 	return r
 }
@@ -37,7 +44,12 @@ func (r *Registry) Extract(ctx context.Context, path string) (*Document, error) 
 	ext := filepath.Ext(path)
 	handler, ok := r.handlers[ext]
 	if !ok {
-		return nil, fmt.Errorf("no extractor registered for extension: %s", ext)
+		// Try exact filename match (e.g., Makefile)
+		base := filepath.Base(path)
+		handler, ok = r.handlers[base]
+		if !ok {
+			return nil, fmt.Errorf("no extractor registered for extension: %s", ext)
+		}
 	}
 	return handler.Extract(ctx, path)
 }

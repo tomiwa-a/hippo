@@ -2,6 +2,8 @@ package crawler
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log"
 	"os"
 	"time"
@@ -70,8 +72,11 @@ func (c *Crawler) Sync(ctx context.Context) error {
 }
 
 func (c *Crawler) handleFileChange(ctx context.Context, path string) {
+	// log.Printf("DEBUG: Candidate: %s", path) // excessive, but let's see. commented out for now, let's just log skips.
+
 	info, err := os.Stat(path)
 	if err != nil {
+		log.Printf("DEBUG: Error stat %s: %v", path, err)
 		return
 	}
 	if info.IsDir() {
@@ -79,14 +84,22 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 	}
 
 	if info.Size() > c.Config.MaxSize {
+		log.Printf("DEBUG: Skipping %s: too large", path)
 		return
 	}
 
 	mtime := info.ModTime().Unix()
 	size := info.Size()
 
-	existing, _ := c.DB.GetFile(ctx, path)
+	existing, err := c.DB.GetFile(ctx, path)
+	if err != nil {
+		// Log error if it's not simply "not found"? GetFile swallows ErrNoRows and returns nil.
+		// So err here is a DB error.
+		log.Printf("DEBUG: DB Error getting %s: %v", path, err)
+	}
+
 	if existing != nil && existing.LastModified == mtime && existing.Size == size {
+		log.Printf("DEBUG: Skipping %s: already indexed (unchanged)", path)
 		return
 	}
 
@@ -100,9 +113,13 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 
 	chunks := c.chunker.Chunk(doc)
 
+	// Compute SHA256 hash of content
+	hash := sha256.Sum256([]byte(doc.Content))
+	hashStr := hex.EncodeToString(hash[:])
+
 	f := &db.File{
 		Path:         path,
-		Hash:         doc.Content,
+		Hash:         hashStr,
 		LastModified: mtime,
 		Size:         size,
 		IndexedAt:    time.Now().Unix(),
