@@ -53,6 +53,7 @@ func (db *DB) migrate(ctx context.Context) error {
 	CREATE TABLE IF NOT EXISTS files (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		path TEXT NOT NULL UNIQUE,
+		relative_path TEXT NOT NULL DEFAULT '',
 		hash TEXT NOT NULL,
 		last_modified INTEGER NOT NULL,
 		size INTEGER NOT NULL,
@@ -162,6 +163,7 @@ func (db *DB) SaveChunk(ctx context.Context, c ingestion.Chunk, embedding []floa
 type File struct {
 	ID           int64
 	Path         string
+	RelativePath string
 	Hash         string
 	LastModified int64
 	Size         int64
@@ -170,8 +172,8 @@ type File struct {
 
 func (db *DB) GetFile(ctx context.Context, path string) (*File, error) {
 	var f File
-	query := `SELECT id, path, hash, last_modified, size, indexed_at FROM files WHERE path = ?`
-	err := db.QueryRowContext(ctx, query, path).Scan(&f.ID, &f.Path, &f.Hash, &f.LastModified, &f.Size, &f.IndexedAt)
+	query := `SELECT id, path, relative_path, hash, last_modified, size, indexed_at FROM files WHERE path = ?`
+	err := db.QueryRowContext(ctx, query, path).Scan(&f.ID, &f.Path, &f.RelativePath, &f.Hash, &f.LastModified, &f.Size, &f.IndexedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -183,9 +185,10 @@ func (db *DB) GetFile(ctx context.Context, path string) (*File, error) {
 
 func (db *DB) UpsertFile(ctx context.Context, f *File) error {
 	query := `
-	INSERT INTO files (path, hash, last_modified, size, indexed_at)
-	VALUES (?, ?, ?, ?, ?)
+	INSERT INTO files (path, relative_path, hash, last_modified, size, indexed_at)
+	VALUES (?, ?, ?, ?, ?, ?)
 	ON CONFLICT(path) DO UPDATE SET
+		relative_path = excluded.relative_path,
 		hash = excluded.hash,
 		last_modified = excluded.last_modified,
 		size = excluded.size,
@@ -194,7 +197,7 @@ func (db *DB) UpsertFile(ctx context.Context, f *File) error {
 	// Simple retry logic for busy database
 	maxRetries := 5
 	for i := 0; i < maxRetries; i++ {
-		_, err := db.ExecContext(ctx, query, f.Path, f.Hash, f.LastModified, f.Size, f.IndexedAt)
+		_, err := db.ExecContext(ctx, query, f.Path, f.RelativePath, f.Hash, f.LastModified, f.Size, f.IndexedAt)
 		if err == nil {
 			return nil
 		}

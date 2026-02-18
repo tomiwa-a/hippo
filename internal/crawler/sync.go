@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	gitignore "github.com/sabhiram/go-gitignore"
@@ -119,11 +121,23 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 	hash := sha256.Sum256([]byte(doc.Content))
 	hashStr := hex.EncodeToString(hash[:])
 
+	// Calculate relative path
+	var relPath string
+	for _, root := range c.Config.WatchPaths {
+		if strings.HasPrefix(path, root) {
+			if rel, err := filepath.Rel(root, path); err == nil {
+				relPath = rel
+				break
+			}
+		}
+	}
+
 	// Hash check optimization
 	if existing != nil && existing.Hash == hashStr {
 		f := &db.File{
 			ID:           existing.ID,
 			Path:         path,
+			RelativePath: relPath, // Use calculated relative path
 			Hash:         hashStr,
 			LastModified: mtime,
 			Size:         size,
@@ -138,6 +152,7 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 
 	f := &db.File{
 		Path:         path,
+		RelativePath: relPath,
 		Hash:         hashStr,
 		LastModified: mtime,
 		Size:         size,
