@@ -11,7 +11,15 @@ ui:
 
 ## run: run the Hippo crawler and engine
 run:
-	go run cmd/hippo/main.go
+	go run ./cmd/hippo start
+
+## status: check engine status
+status:
+	go run ./cmd/hippo status
+
+## query: search the index (usage: make query Q="search term")
+query:
+	go run ./cmd/hippo query "$(Q)"
 
 ## test: run all tests, including ingestion verification
 test:

@@ -227,3 +227,48 @@ func (db *DB) DeleteFile(ctx context.Context, path string) error {
 	}
 	return fmt.Errorf("max retries exceeded for delete file")
 }
+
+type SearchResult struct {
+	ChunkID      string
+	Content      string
+	Path         string
+	RelativePath string
+	Distance     float64
+}
+
+func (db *DB) Search(ctx context.Context, embedding []float32, limit int) ([]SearchResult, error) {
+	blob := serializeFloat32(embedding)
+	query := `
+		SELECT 
+			vc.chunk_id, 
+			vc.distance,
+			c.content,
+			f.path,
+			f.relative_path
+		FROM (
+			SELECT chunk_id, distance
+			FROM vec_chunks
+			WHERE embedding MATCH ?
+			ORDER BY distance
+			LIMIT ?
+		) vc
+		JOIN chunks c ON c.chunk_id = vc.chunk_id
+		JOIN files f ON f.id = c.file_id
+	`
+
+	rows, err := db.QueryContext(ctx, query, blob, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []SearchResult
+	for rows.Next() {
+		var r SearchResult
+		if err := rows.Scan(&r.ChunkID, &r.Distance, &r.Content, &r.Path, &r.RelativePath); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
