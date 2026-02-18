@@ -1,6 +1,7 @@
 watch:
   - .
   - ./docs
+  - ../
 
 ignore:
   - "node_modules/"

@@ -41,6 +41,17 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
+		var mappedCount int
+		if err := database.QueryRow("SELECT count(DISTINCT file_id) FROM chunks").Scan(&mappedCount); err != nil {
+			color.Red("Error querying mapped file count: %v", err)
+			return
+		}
+
+		coverage := 0.0
+		if count > 0 {
+			coverage = (float64(mappedCount) / float64(count)) * 100
+		}
+
 		// Get DB File Size (Index Size)
 		var dbSize int64
 		if info, err := os.Stat(cfg.DBPath); err == nil {
@@ -68,6 +79,7 @@ var statusCmd = &cobra.Command{
 		fmt.Printf("%s\n", redBold("[HIPPO] Status Report"))
 		fmt.Println("-----------------------")
 		fmt.Printf("Files Indexed: %d\n", count)
+		fmt.Printf("Files Mapped:  %d (%.1f%%)\n", mappedCount, coverage)
 		fmt.Printf("Content Size:  %.2f MB\n", float64(totalSize)/(1024*1024))
 		fmt.Printf("Index Size:    %.2f MB\n", float64(dbSize)/(1024*1024))
 		fmt.Printf("Memory:        %s\n", memUsage)

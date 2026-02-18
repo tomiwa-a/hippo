@@ -1,11 +1,11 @@
 # Hippo Runtime
-hippo.db
-hippo.pid
-hippo.stats
+hippo.db*
+hippo.pid*
+hippo.stats*
 
 # Binaries
 bin/
-hippo
+/hippo
 
 # Standard Go
 vendor/
@@ -13,6 +13,4 @@ vendor/
 *.test
 *.prof
 
-
-phases.md
 dummy/
