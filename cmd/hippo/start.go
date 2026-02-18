@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/tomiwa-a/hippo/internal/config"
@@ -21,10 +25,27 @@ var startCmd = &cobra.Command{
 			log.Fatalf("Failed to load config: %v", err)
 		}
 
+		pidPath := "hippo.pid"
+		if abs, err := filepath.Abs(pidPath); err == nil {
+			pidPath = abs
+		}
+		if err := os.WriteFile(pidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
+			log.Printf("Warning: Failed to write PID file: %v", err)
+		}
+		defer os.Remove(pidPath)
+
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			<-c
+			os.Remove(pidPath)
+			os.Exit(0)
+		}()
+
 		fmt.Println("🦛 Hippo Engine Started")
+		fmt.Printf("PID: %d\n", os.Getpid())
 		fmt.Printf("Database Path: %s\n", cfg.DBPath)
 
-		// Initialize Database
 		database, err := db.New(cfg.DBPath)
 		if err != nil {
 			log.Fatalf("Failed to initialize database: %v", err)
@@ -33,7 +54,6 @@ var startCmd = &cobra.Command{
 
 		fmt.Println("Database connected and migrated.")
 
-		// Initialize Crawler
 		engine := crawler.New(database, cfg)
 		engine.Start(ctx)
 

@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -19,7 +22,6 @@ var statusCmd = &cobra.Command{
 			log.Fatalf("Failed to load config: %v", err)
 		}
 
-		// Connect to DB
 		database, err := db.New(cfg.DBPath)
 		if err != nil {
 			color.Red("Error: Database not accessible (%v)", err)
@@ -39,14 +41,37 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
-		// Styling
+		// Get DB File Size (Index Size)
+		var dbSize int64
+		if info, err := os.Stat(cfg.DBPath); err == nil {
+			dbSize = info.Size()
+		}
+
+		// Check Memory Usage (if PID file exists)
+		var memUsage string = "Not Running"
+		pidData, err := os.ReadFile("hippo.pid")
+		if err == nil {
+			pidStr := string(pidData)
+			// Run ps -o rss= -p <PID>
+			// Output is in KB
+			cmd := exec.Command("ps", "-o", "rss=", "-p", pidStr)
+			out, err := cmd.Output()
+			if err == nil {
+				// Parse KB
+				var kb int64
+				fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &kb)
+				memUsage = fmt.Sprintf("%.2f MB", float64(kb)/1024.0)
+			}
+		}
+
 		redBold := color.New(color.FgRed, color.Bold).SprintFunc()
 
 		fmt.Printf("%s\n", redBold("[HIPPO] Status Report"))
 		fmt.Println("-----------------------")
-		fmt.Printf("Database:      %s\n", cfg.DBPath)
 		fmt.Printf("Files Indexed: %d\n", count)
-		fmt.Printf("Total Size:    %.2f MB\n", float64(totalSize)/(1024*1024))
+		fmt.Printf("Content Size:  %.2f MB\n", float64(totalSize)/(1024*1024))
+		fmt.Printf("Index Size:    %.2f MB\n", float64(dbSize)/(1024*1024))
+		fmt.Printf("Memory Usage:  %s\n", memUsage)
 		fmt.Println("-----------------------")
 	},
 }

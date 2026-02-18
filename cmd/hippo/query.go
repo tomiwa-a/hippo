@@ -26,27 +26,23 @@ var queryCmd = &cobra.Command{
 			log.Fatalf("Failed to load config: %v", err)
 		}
 
-		// Connect to DB
 		database, err := db.New(cfg.DBPath)
 		if err != nil {
 			log.Fatalf("Failed to connect to database: %v", err)
 		}
 		defer database.Close()
 
-		// Embed Query
 		embedder := embedding.NewOllamaEmbedder(cfg.Embedding.BaseURL, cfg.Embedding.Model)
 		vec, err := embedder.Embed(ctx, queryText)
 		if err != nil {
 			log.Fatalf("Failed to embed query: %v", err)
 		}
 
-		// Search
-		results, err := database.Search(ctx, vec, 5) // Limit 5
+		results, err := database.Search(ctx, vec, 5)
 		if err != nil {
 			log.Fatalf("Search failed: %v", err)
 		}
 
-		// Display Results
 		redBold := color.New(color.FgRed, color.Bold).SprintFunc()
 		// faint := color.New(color.Faint).SprintFunc()
 
