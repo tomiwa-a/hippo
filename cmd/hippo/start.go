@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -29,6 +30,17 @@ var startCmd = &cobra.Command{
 		if abs, err := filepath.Abs(pidPath); err == nil {
 			pidPath = abs
 		}
+
+		if data, err := os.ReadFile(pidPath); err == nil {
+			if pid, err := strconv.Atoi(string(data)); err == nil {
+				if process, err := os.FindProcess(pid); err == nil {
+					if err := process.Signal(syscall.Signal(0)); err == nil {
+						log.Fatalf("Hippo is already running (PID: %d)", pid)
+					}
+				}
+			}
+		}
+
 		if err := os.WriteFile(pidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
 			log.Printf("Warning: Failed to write PID file: %v", err)
 		}
