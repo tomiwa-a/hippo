@@ -72,11 +72,9 @@ func (c *Crawler) Sync(ctx context.Context) error {
 }
 
 func (c *Crawler) handleFileChange(ctx context.Context, path string) {
-	// log.Printf("DEBUG: Candidate: %s", path) // excessive, but let's see. commented out for now, let's just log skips.
 
 	info, err := os.Stat(path)
 	if err != nil {
-		log.Printf("DEBUG: Error stat %s: %v", path, err)
 		return
 	}
 	if info.IsDir() {
@@ -84,7 +82,6 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 	}
 
 	if info.Size() > c.Config.MaxSize {
-		log.Printf("DEBUG: Skipping %s: too large", path)
 		return
 	}
 
@@ -93,29 +90,41 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 
 	existing, err := c.DB.GetFile(ctx, path)
 	if err != nil {
-		// Log error if it's not simply "not found"? GetFile swallows ErrNoRows and returns nil.
-		// So err here is a DB error.
-		log.Printf("DEBUG: DB Error getting %s: %v", path, err)
+		log.Printf("Error getting file %s: %v\n", path, err)
 	}
 
 	if existing != nil && existing.LastModified == mtime && existing.Size == size {
-		log.Printf("DEBUG: Skipping %s: already indexed (unchanged)", path)
 		return
 	}
 
 	log.Printf("Processing: %s", path)
-
 	doc, err := c.registry.Extract(ctx, path)
 	if err != nil {
 		log.Printf("Extraction failed for %s: %v", path, err)
 		return
 	}
-
-	chunks := c.chunker.Chunk(doc)
+	//
 
 	// Compute SHA256 hash of content
 	hash := sha256.Sum256([]byte(doc.Content))
 	hashStr := hex.EncodeToString(hash[:])
+
+	// Hash check optimization
+	if existing != nil && existing.Hash == hashStr {
+		f := &db.File{
+			ID:           existing.ID,
+			Path:         path,
+			Hash:         hashStr,
+			LastModified: mtime,
+			Size:         size,
+			IndexedAt:    time.Now().Unix(),
+		}
+
+		if err := c.DB.UpsertFile(ctx, f); err != nil {
+			log.Printf("Failed to update file metadata %s: %v", path, err)
+		}
+		return
+	}
 
 	f := &db.File{
 		Path:         path,
@@ -129,6 +138,7 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 		f.ID = existing.ID
 	}
 
+	// First upsert the file to get/ensure ID
 	if err := c.DB.UpsertFile(ctx, f); err != nil {
 		log.Printf("Failed to upsert file %s: %v", path, err)
 		return
@@ -138,6 +148,9 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 		savedFile, _ := c.DB.GetFile(ctx, path)
 		f.ID = savedFile.ID
 	}
+
+	// Then process chunks
+	chunks := c.chunker.Chunk(doc)
 
 	for _, chunk := range chunks {
 		chunk.FileID = f.ID
@@ -158,4 +171,5 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 			log.Printf("Failed to save chunk %s: %v", chunk.ID, err)
 		}
 	}
+	log.Printf("Indexed: %s", path)
 }

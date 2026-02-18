@@ -23,7 +23,6 @@ func Walk(roots []string, gi *gitignore.GitIgnore) <-chan string {
 
 				if gi.MatchesPath(path) {
 					if d.IsDir() {
-						log.Printf("DEBUG: Skipping directory %s", path)
 						return filepath.SkipDir
 					}
 					return nil
