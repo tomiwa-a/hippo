@@ -75,18 +75,29 @@ func (c *Crawler) Sync(ctx context.Context) error {
 
 func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 
+	// Calculate relative path for logging and DB
+	relPath := path
+	for _, root := range c.Config.WatchPaths {
+		if strings.HasPrefix(path, root) {
+			if rel, err := filepath.Rel(root, path); err == nil {
+				relPath = rel
+				break
+			}
+		}
+	}
+
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		// File deleted or renamed (old path)
 		if err := c.DB.DeleteFile(ctx, path); err != nil {
-			log.Printf("Failed to delete file %s: %v", path, err)
+			log.Printf("Failed to delete file %s: %v", relPath, err)
 		} else {
-			log.Printf("Deleted/Pruned: %s", path)
+			log.Printf("Deleted/Pruned: %s", relPath)
 		}
 		return
 	}
 	if err != nil {
-		log.Printf("Error accessing file %s: %v", path, err)
+		log.Printf("Error accessing file %s: %v", relPath, err)
 		return
 	}
 	if info.IsDir() {
@@ -102,17 +113,17 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 
 	existing, err := c.DB.GetFile(ctx, path)
 	if err != nil {
-		log.Printf("Error getting file %s: %v\n", path, err)
+		log.Printf("Error getting file %s: %v\n", relPath, err)
 	}
 
 	if existing != nil && existing.LastModified == mtime && existing.Size == size {
 		return
 	}
 
-	log.Printf("Processing: %s", path)
+	log.Printf("Processing: %s", relPath)
 	doc, err := c.registry.Extract(ctx, path)
 	if err != nil {
-		log.Printf("Extraction failed for %s: %v", path, err)
+		log.Printf("Extraction failed for %s: %v", relPath, err)
 		return
 	}
 	//
@@ -120,17 +131,6 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 	// Compute SHA256 hash of content
 	hash := sha256.Sum256([]byte(doc.Content))
 	hashStr := hex.EncodeToString(hash[:])
-
-	// Calculate relative path
-	var relPath string
-	for _, root := range c.Config.WatchPaths {
-		if strings.HasPrefix(path, root) {
-			if rel, err := filepath.Rel(root, path); err == nil {
-				relPath = rel
-				break
-			}
-		}
-	}
 
 	// Hash check optimization
 	if existing != nil && existing.Hash == hashStr {
@@ -145,7 +145,7 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 		}
 
 		if err := c.DB.UpsertFile(ctx, f); err != nil {
-			log.Printf("Failed to update file metadata %s: %v", path, err)
+			log.Printf("Failed to update file metadata %s: %v", relPath, err)
 		}
 		return
 	}
@@ -196,5 +196,5 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 			log.Printf("Failed to save chunk %s: %v", chunk.ID, err)
 		}
 	}
-	log.Printf("Indexed: %s", path)
+	log.Printf("Indexed: %s", relPath)
 }
