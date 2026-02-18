@@ -70,6 +70,11 @@ func (c *Crawler) Sync(ctx context.Context) error {
 	for path := range fileChan {
 		c.work <- path
 	}
+	// Wait a bit or use a more robust way to signal end of work if workers are concurrent.
+	// For simplicity in this local-first tool, we'll just run a resolution at the end.
+	if err := c.DB.UpdateResolvedLinks(ctx); err != nil {
+		log.Printf("Link resolution failed: %v", err)
+	}
 	return nil
 }
 
@@ -126,6 +131,14 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 		log.Printf("Extraction failed for %s: %v", relPath, err)
 		return
 	}
+
+	// Resolve relative links
+	for i, l := range doc.Links {
+		if strings.HasPrefix(l.Target, ".") {
+			absTarget := filepath.Join(filepath.Dir(path), l.Target)
+			doc.Links[i].Target = absTarget
+		}
+	}
 	//
 
 	// Compute SHA256 hash of content
@@ -172,6 +185,13 @@ func (c *Crawler) handleFileChange(ctx context.Context, path string) {
 	if f.ID == 0 {
 		savedFile, _ := c.DB.GetFile(ctx, path)
 		f.ID = savedFile.ID
+	}
+
+	// Save Knowledge Graph Links
+	if len(doc.Links) > 0 {
+		if err := c.DB.SaveLinks(ctx, f.ID, doc.Links); err != nil {
+			log.Printf("Failed to save links for %s: %v", relPath, err)
+		}
 	}
 
 	// Then process chunks

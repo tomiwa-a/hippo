@@ -2,7 +2,7 @@
 
 This document outlines the 20-step plan to build the local-first semantic knowledge engine backend, structured into 3 key phases: **The Crawler**, **Ingestion & Mapping**, and **Querying**.
 
-## Phase 2.1: The Crawler (Background Service)
+## Phase 2.1: The Crawler (Background Service) [COMPLETED]
 
 - [x] 1. **Project Skeleton & Config**: Set up `cmd/hippo` with Viper/Cobra. Implement priority loading for a local `hippo.yml` to define inclusion/exclusion rules and focused index paths.
 - [x] 2. **File System Database**: Create the `files` table in SQLite to track file paths, modification times (`mtime`), and hashes to detect changes.
@@ -11,7 +11,7 @@ This document outlines the 20-step plan to build the local-first semantic knowle
 - [x] 5. **Real-Time Watcher**: Integrate `fsnotify` to listen for OS-level file events and trigger immediate processing for active directories.
 - [x] 6. **Concurrency Control**: Implement a worker pool pattern to handle file crawling without overwhelming file descriptors or CPU.
 
-## Phase 2.2: Ingestion & Mapping (The "Brain")
+## Phase 2.2: Ingestion & Mapping (The "Brain") [COMPLETED]
 
 > [!TIP]
 > **Strategy**: Build the extraction layer as a decoupled, modular internal package. This ensures Hippo remains clean and allows for future open-sourcing of the "Universal Document Extractor."
@@ -38,8 +38,9 @@ This document outlines the 20-step plan to build the local-first semantic knowle
 
 ## Phase 3: Advanced Intelligence & Interface
 
-- [ ] 17. **Knowledge Graph Linking**: Create a simple link map (e.g., referencing other files via import statements or wikilinks).
-- [ ] 18. **Hybrid Search Logic**: Combine vector results with FTS5 keyword search.
-- [ ] 19. **Result Reranking**: Boost results based on recency or exact matches.
-- [ ] 20. **HTTP API Server**: Build a lightweight REST API (Delayed).
-- [ ] 21. **Cross-Platform Build**: Configure build pipeline.
+- [x] 20. **Knowledge Graph Linking**: Create a simple link map (e.g., referencing other files via import statements or wikilinks).
+- [ ] 21. **Hybrid Search Logic**: Combine vector results with FTS5 keyword search.
+- [ ] 22. **Result Reranking**: Boost results based on recency or exact matches.
+- [ ] 23. **Temporal Querying**: Activity-based search (e.g., "what was I doing last Tuesday?").
+- [ ] 24. **HTTP API Server**: Build a lightweight REST API (Delayed).
+- [ ] 25. **Cross-Platform Build**: Configure build pipeline.

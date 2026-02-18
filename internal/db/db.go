@@ -80,6 +80,19 @@ func (db *DB) migrate(ctx context.Context) error {
 
 	CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON chunks(file_id);
 	CREATE INDEX IF NOT EXISTS idx_chunks_chunk_id ON chunks(chunk_id);
+
+	CREATE TABLE IF NOT EXISTS links (
+		source_id INTEGER NOT NULL,
+		target_path TEXT NOT NULL,
+		target_id INTEGER,
+		link_type TEXT NOT NULL,
+		PRIMARY KEY(source_id, target_path, link_type),
+		FOREIGN KEY(source_id) REFERENCES files(id) ON DELETE CASCADE,
+		FOREIGN KEY(target_id) REFERENCES files(id) ON DELETE SET NULL
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_id);
+	CREATE INDEX IF NOT EXISTS idx_links_target_id ON links(target_id);
 	`
 
 	_, err := db.ExecContext(ctx, query)
@@ -234,6 +247,7 @@ type SearchResult struct {
 	Path         string
 	RelativePath string
 	Distance     float64
+	FileID       int64
 }
 
 func (db *DB) Search(ctx context.Context, embedding []float32, limit int) ([]SearchResult, error) {
@@ -244,7 +258,8 @@ func (db *DB) Search(ctx context.Context, embedding []float32, limit int) ([]Sea
 			vc.distance,
 			c.content,
 			f.path,
-			f.relative_path
+			f.relative_path,
+			f.id
 		FROM (
 			SELECT chunk_id, distance
 			FROM vec_chunks
@@ -265,10 +280,107 @@ func (db *DB) Search(ctx context.Context, embedding []float32, limit int) ([]Sea
 	var results []SearchResult
 	for rows.Next() {
 		var r SearchResult
-		if err := rows.Scan(&r.ChunkID, &r.Distance, &r.Content, &r.Path, &r.RelativePath); err != nil {
+		if err := rows.Scan(&r.ChunkID, &r.Distance, &r.Content, &r.Path, &r.RelativePath, &r.FileID); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
 		results = append(results, r)
 	}
 	return results, nil
+}
+
+func (db *DB) SaveLinks(ctx context.Context, sourceID int64, links []ingestion.Link) error {
+	// Simple retry logic
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			if i == maxRetries-1 {
+				return err
+			}
+			continue
+		}
+
+		// Clear old links for this source
+		_, err = tx.ExecContext(ctx, "DELETE FROM links WHERE source_id = ?", sourceID)
+		if err != nil {
+			tx.Rollback()
+			if i == maxRetries-1 {
+				return err
+			}
+			continue
+		}
+
+		// Insert new links
+		for _, l := range links {
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO links (source_id, target_path, link_type, target_id)
+				VALUES (?, ?, ?, (SELECT id FROM files WHERE path = ? OR relative_path = ?))
+			`, sourceID, l.Target, l.Type, l.Target, l.Target)
+			if err != nil {
+				tx.Rollback()
+				if i == maxRetries-1 {
+					return err
+				}
+				goto retry
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			if i == maxRetries-1 {
+				return err
+			}
+			continue
+		}
+		return nil
+	retry:
+		continue
+	}
+	return fmt.Errorf("max retries exceeded for save links")
+}
+
+func (db *DB) UpdateResolvedLinks(ctx context.Context) error {
+	query := `
+		UPDATE links 
+		SET target_id = (
+			SELECT id FROM files 
+			WHERE path = target_path 
+			   OR relative_path = target_path
+			   OR relative_path = target_path || '.md'
+			   OR relative_path = target_path || '.txt'
+			   OR path LIKE '%' || target_path -- Broader fallback
+			LIMIT 1
+		)
+		WHERE target_id IS NULL
+	`
+	_, err := db.ExecContext(ctx, query)
+	return err
+}
+
+func (db *DB) GetLinks(ctx context.Context, fileID int64) ([]string, error) {
+	query := `
+		SELECT DISTINCT f.relative_path 
+		FROM links l 
+		JOIN files f ON f.id = l.target_id 
+		WHERE l.source_id = ? AND l.target_id IS NOT NULL
+		UNION
+		SELECT DISTINCT f.relative_path
+		FROM links l
+		JOIN files f ON f.id = l.source_id
+		WHERE l.target_id = ?
+	`
+	rows, err := db.QueryContext(ctx, query, fileID, fileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var links []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		links = append(links, path)
+	}
+	return links, nil
 }

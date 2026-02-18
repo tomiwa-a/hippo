@@ -16,10 +16,16 @@ type Marker struct {
 	Value    string
 }
 
+type Link struct {
+	Target string
+	Type   string
+}
+
 type Document struct {
 	Path    string
 	Content string
 	Markers []Marker
+	Links   []Link
 }
 
 type Chunk struct {

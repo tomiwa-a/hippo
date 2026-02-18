@@ -67,9 +67,15 @@ var queryCmd = &cobra.Command{
 			// Let's just show Path for now.
 
 			fmt.Printf("%d. %s\n", i+1, redBold(path))
-			// fmt.Printf("   Distance: %.4f\n", r.Distance)
 
-			// Snippet (first 200 chars or reasonable line?)
+			// Show Connected Knowledge
+			links, err := database.GetLinks(ctx, r.FileID)
+			if err == nil && len(links) > 0 {
+				blue := color.New(color.FgCyan).SprintFunc()
+				fmt.Printf("   %s %s\n", blue("Connected:"), strings.Join(links, ", "))
+			}
+
+			// Snippet
 			snippet := r.Content
 			if len(snippet) > 200 {
 				snippet = snippet[:200] + "..."
